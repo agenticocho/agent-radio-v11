@@ -2398,6 +2398,14 @@ function select(id, autoplay=true){
 }
 async function playCurrent(){
   if (!current) return;
+  // Link-out stations are played on the provider's own service; this station does not proxy
+  // them, because that provider's terms exclude third-party clients. Mirrors the existing
+  // 'unavailable' refusal: say what is true, name the alternative, start no audio.
+  if (current.playback === 'link-out' && current.linkOut) {
+    toast(`${current.name}: opens ${current.linkOut.service} — they don't permit third-party clients`);
+    try { window.open(current.linkOut.url, '_blank', 'noopener,noreferrer'); } catch (_) {}
+    return;
+  }
   setUserVolume(+$('#volume').value, 0);
   audio.src=`${RELAY}/stream/${current.id}`;
   try{ await audio.play(); playing=true; setPlayState(); startEQ(); toast(`Playing ${current.name}`) }

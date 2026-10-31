@@ -360,6 +360,31 @@ const HOST        = '127.0.0.1';
 const UA          = 'AgentRadio/10.0 (Jarvis; local)';
 const HTML_FILE=path.join(__dirname,'agent-radio-v11.2.html');
 const STREAM_UA   = 'AgentRadio/10.0 (stream proxy; local)';
+
+// ── Link-out-only services ───────────────────────────────────────────────────
+// Some providers do not permit third-party clients at all. SomaFM is one: their ToS
+// (updated 4 Sep 2026, restated 30 Sep 2026) says "We can't grant permission for
+// third-party SomaFM clients or applications, even noncommercial ones", that they are
+// "not approving new third-party clients", and that their exceptions are for
+// "general-purpose radio tuner applications that predate this policy". Presenting as one of
+// those clients would be claiming an exception we do not have, so this station does not
+// proxy them -- it links out to the player they publish themselves.
+//
+// Keyed on the upstream HOST, not on station id: ids come from third-party catalogues and
+// are not stable, while the host is the party whose terms apply.
+const LINK_OUT_HOSTS = Object.freeze([
+  { match: /(^|\.)somafm\.com$/i, service: 'SomaFM', url: 'https://somafm.com/' },
+]);
+
+function linkOutForStream(streamUrl) {
+  let host;
+  try { host = new URL(String(streamUrl || '')).hostname; } catch { return null; }
+  if (!host) return null;
+  for (const rule of LINK_OUT_HOSTS) {
+    if (rule.match.test(host)) return rule;
+  }
+  return null;
+}
 // Catalog: prefer the v10 favicon-backfilled catalog, then the canonical filename.
 const CATALOG_FILE   = [
   path.join(__dirname, 'agent-radio-stations-v11.2-projected.json'),
@@ -1314,6 +1339,20 @@ async function serveStream(req, res, stationId) {
     res.writeHead(502, { 'Content-Type': 'application/json' });
     return void res.end(JSON.stringify({ ok: false, error: 'station-unavailable', detail: station.unavailableReason || 'unavailable' }));
   }
+  // Policy refusal, not a failure. This is a 403 with the reason and the alternative named,
+  // so a client that ignores the /catalog annotation still gets an actionable answer instead
+  // of a 5xx it would report as a broken stream.
+  const linkOut = linkOutForStream(station.streamUrl);
+  if (linkOut) {
+    res.writeHead(403, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    return void res.end(JSON.stringify({
+      ok: false,
+      error: 'link-out-only',
+      service: linkOut.service,
+      linkOut: linkOut.url,
+      detail: linkOut.service + ' does not permit third-party clients; play it on their own player',
+    }));
+  }
   await acquireStream();
   let upstreamReq = null;
   let idleTimer = null;
@@ -1877,7 +1916,14 @@ if (method === 'GET' && route === '/agent-radio-story-packet-v1.js') {
   // Full deduplicated accepted catalog (NEW v6)
   if (method === 'GET' && (route === '/catalog.json' || route === '/catalog')) {
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
-    res.end(JSON.stringify({ ok: true, stats: CATALOG_STATS, stations: CATALOG }));
+    // Annotate link-out stations here, once. The page reads this rather than keeping a second
+    // copy of the rule -- a list in two places desyncs and fails silently.
+    const annotated = CATALOG.map((s) => {
+      const lo = linkOutForStream(s && (s.stream_url || s.streamUrl));
+      if (!lo) return s;
+      return { ...s, playback: 'link-out', linkOut: { service: lo.service, url: lo.url } };
+    });
+    res.end(JSON.stringify({ ok: true, stats: CATALOG_STATS, stations: annotated }));
     return;
   }
 
