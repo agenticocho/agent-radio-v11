@@ -1,0 +1,15 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs');
+const ui=fs.readFileSync(__dirname+'/agent-radio-native-card-ui.js','utf8');
+const demo=fs.readFileSync(__dirname+'/agent-radio-native-card-demo.js','utf8');
+assert.match(ui,/#ar-hero-insight \[hidden\]\{display:none!important\}/);
+assert.match(ui,/els\.native\.style\.display=analysis\?'none':'grid'/);
+assert.match(ui,/els\.analysis\.style\.display=analysis\?'grid':'none'/);
+assert.match(ui,/setTab\('native'\)/);
+assert.match(ui,/data-panel="native"/);assert.match(ui,/data-panel="analysis" hidden/);
+assert.match(ui,/Arousal estimate/);assert.match(ui,/Valence estimate/);assert.match(ui,/Harmonic tension/);assert.match(ui,/Flow zone/);
+assert.match(ui,/Tonal centre/);assert.match(ui,/Tempo/);assert.match(ui,/Consonance/);assert.match(ui,/Complexity/);assert.match(ui,/Entropy \(bits\)/);
+assert.match(ui,/id="ar-native-demo-phase"/);assert.match(ui,/demo\.style\.display|chip\.style\.display/);
+assert.doesNotMatch(demo,/position:fixed/);assert.doesNotMatch(demo,/body\.appendChild\(banner\)/);
+assert.doesNotMatch(ui,/\.player|footer\.append|position:fixed/);
+console.log('PASS scoped hidden-panel rule');console.log('PASS imperative tab-display fallback');console.log('PASS exactly one default panel visible');console.log('PASS Native Card and Analysis distinct field sets');console.log('PASS demo chip embedded in insight header');console.log('PASS no bottom-left fixed badge');console.log('PASS transport remains untouched');console.log('ALL A3.5R2 TAB FIX CONTRACT TESTS PASSED');

@@ -1,0 +1,10 @@
+'use strict';
+const assert=require('node:assert/strict');const fs=require('node:fs');
+const js=fs.readFileSync(__dirname+'/agent-radio-native-card-ui.js','utf8');
+assert.match(js,/querySelector\('section\.hero'\)/);assert.match(js,/hero\.appendChild\(panel\)/);
+assert.match(js,/Native Card/);assert.match(js,/Analysis/);assert.match(js,/Open full-screen Analysis/);
+assert.match(js,/AgentRadioVocabulary\.show/);assert.match(js,/#ar-analysis-launch\{display:none!important\}/);
+assert.match(js,/@media\(max-width:1180px\)/);assert.match(js,/@media\(max-width:760px\)/);assert.match(js,/prefers-reduced-motion/);
+assert.doesNotMatch(js,/position:fixed/);assert.doesNotMatch(js,/player\.append|footer\.append|\.player/);
+assert.doesNotMatch(js,/fetch\(|XMLHttpRequest|127\.0\.0\.1:4200|injectionReadiness/);
+console.log('PASS embedded in section.hero');console.log('PASS Native Card / Analysis tabs');console.log('PASS fullscreen Analysis expansion');console.log('PASS original floating launch hidden');console.log('PASS desktop, medium, narrow responsive rules');console.log('PASS bottom transport untouched');console.log('PASS no network, sidecar, or control path');console.log('ALL A3.5R LAYOUT CONTRACT TESTS PASSED');
